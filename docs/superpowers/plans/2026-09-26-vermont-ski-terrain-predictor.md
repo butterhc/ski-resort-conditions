@@ -2,21 +2,29 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a high-performance web application and automated data pipeline that predicts and visualizes terrain availability and glade opening probabilities across Vermont's top 10 ski resorts from October 15 through June 1.
+**Goal:** Build a high-performance web application that visualizes calibrated terrain availability estimates and glade opening probabilities across Vermont's top 10 ski resorts from October 15 through June 1.
 
-**Architecture:** A Python statistical modeling engine synthesizes 15+ years of snowpack and mountain records into an optimized, pre-compiled JSON baseline dataset (`public/data/vermont_ski_baseline.json`). A responsive React + Vite single-page application loads this bundle for sub-millisecond trip planning, seasonal progression curve visualization, and multi-resort comparisons. A modular Python scraping pipeline provides live daily tracking during the ski season.
+**Architecture:** A Python calibrated estimation engine synthesizes expert-curated resort profiles, orographic snow multipliers, and terrain taxonomy into an optimized, pre-compiled JSON baseline dataset (`public/data/vermont_ski_baseline.json`). A responsive React + Vite single-page application loads this bundle for fast trip planning, seasonal progression curve visualization, and multi-resort comparisons. A modular Python scraping pipeline is scaffolded for Phase 2 live season tracking.
+
+> **Data Transparency Notice:** The baseline engine produces calibrated estimates derived from expert-curated resort profiles and publicly available terrain data, not raw statistical inference from historical snowfall datasets. All probability outputs should be understood as informed approximations. Ingesting real historical data (e.g., Mount Mansfield Snow Stake archives, NOAA GHCN-Daily) is a Phase 2 enhancement.
 
 **Tech Stack:**
-- **Data Pipeline & Scrapers:** Python 3.13, `pytest`, `requests`, `beautifulsoup4`, `pydantic`
+- **Data Pipeline & Scrapers:** Python 3.13, `pytest`, `requests`, `beautifulsoup4`, `pydantic`, `defusedxml`
 - **Frontend App:** React 19, Vite, Vanilla CSS design tokens (mountain-slate dark mode), SVG data visualizations
-- **Automation:** GitHub Actions cron schedule (7:00 AM EST daily)
+- **CI/CD:** GitHub Actions (lint, test, build, deploy on push to `main` with SHA-pinned actions and least-privilege permissions)
+- **Deployment:** GitHub Pages (static site hosting via `gh-pages` branch)
+- **Phase 2 — Automation:** GitHub Actions cron schedule (7:00 AM EST daily) for live scrapers
 
 ## Global Constraints
-- Target Season Span: October 15 to June 1 (~230 daily entries per resort).
+- Target Season Span: October 15 to June 1 (~230 daily entries per resort). Season year must be parameterized (not hardcoded).
 - Top 10 Vermont Alpine Resorts: Jay Peak, Stowe, Smugglers' Notch, Sugarbush, Mad River Glen, Killington, Okemo, Stratton, Mount Snow, Bolton Valley.
 - No global `pip install`; all Python dependencies must run inside `.venv/`.
 - Zero placeholder or stubbed functions in production code.
 - Every task ends with working, tested code and a clean git commit.
+- All interactive elements must meet WCAG 2.1 AA baseline: ARIA labels, keyboard navigability (`tabIndex`, `role`), focus management, and sufficient color contrast (≥ 4.5:1 for body text).
+- The app must be deployed to a publicly accessible URL (GitHub Pages) as part of the plan, not left as a local-only build.
+- Baseline JSON payload must remain under 300KB gzipped. Add a build-time size assertion.
+- **Security Hardening Baseline:** Defend XML parsing against XXE/Billion Laughs with `defusedxml`. Pin all GitHub Actions to full commit SHAs. Enforce explicit least-privilege `permissions` blocks on all workflows. Enforce Content Security Policy (CSP) in `index.html`. Fail CI on high/critical production dependency vulnerabilities.
 
 ---
 
@@ -30,7 +38,7 @@
 
 **Interfaces:**
 - Consumes: System Python 3.13
-- Produces: Isolated `.venv` with `pytest`, `requests`, `beautifulsoup4`, `pydantic` installed
+- Produces: Isolated `.venv` with `pytest`, `requests`, `beautifulsoup4`, `pydantic`, `defusedxml` installed
 
 - [ ] **Step 1: Create .gitignore for Python and Node environments**
 
@@ -55,7 +63,7 @@ Run:
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install --upgrade pip
-.venv/bin/pip install pytest requests beautifulsoup4 pydantic
+.venv/bin/pip install pytest requests beautifulsoup4 pydantic defusedxml
 .venv/bin/pip freeze > requirements.txt
 ```
 
@@ -85,7 +93,7 @@ git commit -m "chore: scaffold python virtual environment and pytest harness"
 
 ---
 
-### Task 2: Historical Baseline & Statistical Probability Generator
+### Task 2: Historical Baseline & Calibrated Estimation Generator
 
 **Files:**
 - Create: `tests/test_baseline.py`
@@ -93,12 +101,13 @@ git commit -m "chore: scaffold python virtual environment and pytest harness"
 - Output: `public/data/vermont_ski_baseline.json`
 
 **Interfaces:**
-- Consumes: None (standalone historical calibration engine)
+- Consumes: None (standalone calibrated estimation engine)
 - Produces: `public/data/vermont_ski_baseline.json` conforming to the spec schema (10 resorts, Oct 15 – Jun 1 timeline, p10/p50/p90 percentiles, glade probabilities, iconic runs)
 
 - [ ] **Step 1: Write failing test in tests/test_baseline.py**
 
 ```python
+import gzip
 import json
 from pathlib import Path
 import pytest
@@ -106,11 +115,12 @@ from pipeline.generate_baseline import generate_baseline_dataset, TARGET_RESORTS
 
 def test_generate_baseline_structure(tmp_path):
     output_path = tmp_path / "baseline.json"
-    data = generate_baseline_dataset(output_path=output_path)
+    data = generate_baseline_dataset(output_path=output_path, season_year=2026)
     
     assert output_path.exists()
     assert "resorts" in data
     assert len(data["resorts"]) == 10
+    assert data["season"] == "2026-2027"
     
     # Check all 10 target resorts exist
     resort_ids = [r["id"] for r in data["resorts"]]
@@ -139,6 +149,20 @@ def test_generate_baseline_structure(tmp_path):
             for holiday in ["christmas", "mlk_weekend", "presidents_day", "spring_break"]:
                 assert holiday in odds
                 assert 0.0 <= odds[holiday] <= 1.0
+
+def test_baseline_json_payload_size(tmp_path):
+    """Baseline JSON must remain under 300KB gzipped to meet the performance budget."""
+    output_path = tmp_path / "baseline.json"
+    generate_baseline_dataset(output_path=output_path, season_year=2026)
+    
+    raw_bytes = output_path.read_bytes()
+    compressed = gzip.compress(raw_bytes)
+    compressed_kb = len(compressed) / 1024
+    
+    assert compressed_kb < 300, (
+        f"Baseline JSON is {compressed_kb:.1f}KB gzipped, exceeding the 300KB budget. "
+        f"Consider reducing indent level or trimming precision."
+    )
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -150,12 +174,17 @@ Expected: `ModuleNotFoundError: No module named 'pipeline.generate_baseline'`
 
 ```python
 """
-Historical Baseline & Statistical Probability Generator for Vermont Ski Resorts.
-Synthesizes 15+ years of Mount Mansfield Snow Stake records, terrain data,
-and resort opening timelines from October 15 through June 1.
+Historical Baseline & Calibrated Estimation Generator for Vermont Ski Resorts.
+Synthesizes expert-curated resort profiles, orographic snow factors, terrain
+taxonomy, and seasonal progression curves from October 15 through June 1.
+
+Note: This engine produces calibrated estimates derived from curated resort data,
+not raw statistical inference from historical snowfall datasets. Ingesting real
+historical data (Mount Mansfield Snow Stake, NOAA GHCN-Daily) is a Phase 2 goal.
 """
 
-from datetime import date, timedelta
+import argparse
+from datetime import date, datetime, timedelta
 import json
 import math
 from pathlib import Path
@@ -852,11 +881,25 @@ def compute_daily_stats(resort: Dict[str, Any], curr_date: date) -> Dict[str, An
         "natural_pct": nat_share,
     }
 
-def generate_baseline_dataset(output_path: Optional[Path] = None) -> Dict[str, Any]:
-    """Generates the full baseline dataset for all 10 resorts from Oct 15 to Jun 1."""
+def _detect_season_year() -> int:
+    """Auto-detect the season start year. If current month >= October, use current year; otherwise prior year."""
+    now = datetime.now()
+    return now.year if now.month >= 10 else now.year - 1
+
+def generate_baseline_dataset(output_path: Optional[Path] = None, season_year: Optional[int] = None) -> Dict[str, Any]:
+    """Generates the full baseline dataset for all 10 resorts from Oct 15 to Jun 1.
+    
+    Args:
+        output_path: Where to write the JSON output. None = don't write to disk.
+        season_year: The starting year of the season (e.g., 2026 for the 2026-2027 season).
+                     Defaults to auto-detection based on current date.
+    """
+    if season_year is None:
+        season_year = _detect_season_year()
+    
     date_list: List[date] = []
-    d = date(2026, 10, 15)
-    end = date(2027, 6, 1)
+    d = date(season_year, 10, 15)
+    end = date(season_year + 1, 6, 1)
     while d <= end:
         date_list.append(d)
         d += timedelta(days=1)
@@ -874,8 +917,8 @@ def generate_baseline_dataset(output_path: Optional[Path] = None) -> Dict[str, A
         })
         
     dataset = {
-        "generated_at": "2026-09-26T00:00:00Z",
-        "season": "2026-2027",
+        "generated_at": datetime.now().isoformat() + "Z",
+        "season": f"{season_year}-{season_year + 1}",
         "total_resorts": len(resort_payloads),
         "timeline_span": {
             "start": "10-15",
@@ -893,9 +936,20 @@ def generate_baseline_dataset(output_path: Optional[Path] = None) -> Dict[str, A
     return dataset
 
 if __name__ == "__main__":
-    out = Path("public/data/vermont_ski_baseline.json")
-    print(f"Generating Vermont Ski Baseline to {out}...")
-    generate_baseline_dataset(output_path=out)
+    parser = argparse.ArgumentParser(description="Generate Vermont Ski Baseline Dataset")
+    parser.add_argument(
+        "--season", type=int, default=None,
+        help="Season start year (e.g., 2026 for 2026-2027). Defaults to auto-detect."
+    )
+    parser.add_argument(
+        "--output", type=str, default="public/data/vermont_ski_baseline.json",
+        help="Output file path for the baseline JSON."
+    )
+    args = parser.parse_args()
+    out = Path(args.output)
+    season = args.season
+    print(f"Generating Vermont Ski Baseline (season={season or 'auto-detect'}) to {out}...")
+    generate_baseline_dataset(output_path=out, season_year=season)
     print("Baseline generation complete.")
 ```
 
@@ -918,9 +972,18 @@ git commit -m "feat: implement historical baseline generator and 10-resort datas
 
 ---
 
-### Task 3: Modular Live Scrapers & Daily Automation Pipeline
+### Task 3: Modular Live Scrapers & Daily Automation Pipeline *(Phase 2 — Deferred)*
 
-**Files:**
+> **Architecture Review Decision:** Task 3 is deferred to Phase 2. The scraper pipeline's output (`data/daily_snapshots/`) is not consumed by the React frontend in v1. Building and maintaining 5 scraper adapters against undocumented, private resort APIs (especially Epic/Vail properties that actively block scrapers) introduces legal risk and operational burden with no user-facing benefit until a merge/overlay mechanism exists.
+>
+> **Phase 2 prerequisites before un-deferring:**
+> 1. Build a merge pipeline that overlays daily snapshot data onto the baseline JSON.
+> 2. Implement all 5 adapters (epic, alterra, killington, indie, snocountry) — not just 2 of 5.
+> 3. Add legal review for web scraping of resort APIs and terms of service.
+> 4. Add structured logging, error alerting, and schema validation on scraper responses.
+> 5. Move daily snapshot storage to git-lfs or external storage to prevent repo bloat.
+
+**Files (Phase 2):**
 - Create: `pipeline/scrapers/base_scraper.py`
 - Create: `pipeline/scrapers/epic_adapter.py`
 - Create: `pipeline/scrapers/alterra_adapter.py`
@@ -928,12 +991,19 @@ git commit -m "feat: implement historical baseline generator and 10-resort datas
 - Create: `pipeline/scrapers/indie_adapter.py`
 - Create: `pipeline/scrapers/snocountry_adapter.py`
 - Create: `pipeline/scrapers/run_daily_scrape.py`
+- Create: `pipeline/scrapers/merge_overlay.py` *(new — merges live data into baseline)*
 - Create: `tests/test_scrapers.py`
 - Create: `.github/workflows/daily-scraper.yml`
 
 **Interfaces:**
 - Consumes: Resort API endpoints & SnoCountry syndication feeds
-- Produces: Normalized daily resort condition snapshots (`data/daily_snapshots/YYYY-MM-DD.json`)
+- Produces: Normalized daily resort condition snapshots (`data/daily_snapshots/YYYY-MM-DD.json`) merged into the baseline
+
+*Implementation details preserved below for Phase 2 reference but should NOT be executed in v1.*
+
+<details>
+<summary>Phase 2 Scraper Implementation (click to expand)</summary>
+
 
 - [ ] **Step 1: Write failing tests in tests/test_scrapers.py**
 
@@ -981,6 +1051,20 @@ def test_snocountry_fallback_parser():
     assert result["open_trails"] == 72
     assert result["total_trails"] == 81
     assert result["surface"] == "Powder"
+
+def test_snocountry_parser_sanitizes_bounds():
+    mock_malformed_xml = """<?xml version="1.0"?>
+    <resort>
+        <open_trails>-5</open_trails>
+        <total_trails>99999</total_trails>
+        <surface_condition><![CDATA[Spring Conditions <script>alert(1)</script>]]></surface_condition>
+    </resort>
+    """
+    scraper = SnoCountryScraper()
+    result = scraper.parse_resort_xml("jay-peak", mock_malformed_xml)
+    assert result["open_trails"] == 0
+    assert result["total_trails"] == 500
+    assert "<script>" not in result["surface"]
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1007,13 +1091,20 @@ class BaseResortScraper(ABC):
 
 ```python
 # pipeline/scrapers/epic_adapter.py
+import json
+import re
 from typing import Any, Dict, List
 import requests
 from pipeline.scrapers.base_scraper import BaseResortScraper
 
 class EpicScraper(BaseResortScraper):
+    # Enforce 5MB safety limit to prevent memory exhaustion DoS
+    MAX_RESPONSE_BYTES = 5 * 1024 * 1024
+
     def __init__(self, resort_id: str, resort_api_code: str):
         super().__init__(resort_id)
+        if not re.match(r"^[a-z0-9-]+$", resort_api_code):
+            raise ValueError(f"Invalid resort API code format: {resort_api_code}")
         self.resort_api_code = resort_api_code
         self.endpoint = f"https://www.{resort_api_code}.com/api/v1/TerrainStatus/GetTerrainStatus"
 
@@ -1025,27 +1116,40 @@ class EpicScraper(BaseResortScraper):
         return {
             "resort_id": self.resort_id,
             "status": "active",
-            "open_trails": report.get("OpenTrails", 0),
-            "total_trails": report.get("TotalTrails", 0),
-            "open_lifts": report.get("OpenLifts", 0),
-            "total_lifts": report.get("TotalLifts", 0),
-            "glades_open": glades_open,
-            "snow_depth_in": report.get("SnowDepth", 0),
+            "open_trails": max(0, min(500, int(report.get("OpenTrails", 0) or 0))),
+            "total_trails": max(0, min(500, int(report.get("TotalTrails", 0) or 0))),
+            "open_lifts": max(0, min(100, int(report.get("OpenLifts", 0) or 0))),
+            "total_lifts": max(0, min(100, int(report.get("TotalLifts", 0) or 0))),
+            "glades_open": max(0, min(200, glades_open)),
+            "snow_depth_in": max(0, min(400, int(report.get("SnowDepth", 0) or 0))),
         }
 
     def fetch_live_status(self) -> Dict[str, Any]:
         try:
-            resp = requests.get(self.endpoint, timeout=10)
+            headers = {
+                "User-Agent": "VermontSkiTerrainPredictor/1.0 (+https://github.com/buttercm/ski-resort-conditions)",
+                "Accept": "application/json"
+            }
+            resp = requests.get(self.endpoint, headers=headers, timeout=10, stream=True)
             resp.raise_for_status()
-            return self.parse_response(resp.json())
+
+            content = b""
+            for chunk in resp.iter_content(chunk_size=65536):
+                content += chunk
+                if len(content) > self.MAX_RESPONSE_BYTES:
+                    raise ValueError(f"Payload exceeded {self.MAX_RESPONSE_BYTES} safety limit")
+
+            data = json.loads(content.decode("utf-8"))
+            return self.parse_response(data)
         except Exception as e:
             return {"resort_id": self.resort_id, "status": "error", "error": str(e)}
 ```
 
 ```python
 # pipeline/scrapers/snocountry_adapter.py
-import xml.etree.ElementTree as ET
+import re
 from typing import Any, Dict
+import defusedxml.ElementTree as ET
 import requests
 from pipeline.scrapers.base_scraper import BaseResortScraper
 
@@ -1054,16 +1158,28 @@ class SnoCountryScraper(BaseResortScraper):
         super().__init__("snocountry-syndication")
 
     def parse_resort_xml(self, resort_id: str, xml_content: str) -> Dict[str, Any]:
+        # defusedxml mitigates entity expansion bombs (Billion Laughs / quadratic blowup)
         root = ET.fromstring(xml_content)
-        open_trails = int(root.findtext("open_trails", "0"))
-        total_trails = int(root.findtext("total_trails", "0"))
-        surface = root.findtext("surface_condition", "Packed Powder")
+        
+        try:
+            open_trails = max(0, min(500, int(root.findtext("open_trails", "0"))))
+        except (ValueError, TypeError):
+            open_trails = 0
+            
+        try:
+            total_trails = max(0, min(500, int(root.findtext("total_trails", "0"))))
+        except (ValueError, TypeError):
+            total_trails = 0
+            
+        raw_surface = root.findtext("surface_condition", "Packed Powder") or "Packed Powder"
+        clean_surface = re.sub(r"[<>]", "", str(raw_surface))[:50].strip()
+        
         return {
             "resort_id": resort_id,
             "status": "active",
             "open_trails": open_trails,
             "total_trails": total_trails,
-            "surface": surface,
+            "surface": clean_surface,
         }
 
     def fetch_live_status(self) -> Dict[str, Any]:
@@ -1113,20 +1229,24 @@ on:
     - cron: '0 12 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   scrape-and-update:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
           python-version: '3.13'
 
       - name: Install dependencies
         run: |
+          pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run daily scraper
@@ -1135,9 +1255,17 @@ jobs:
 
       - name: Commit and push updates
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
           git add data/daily_snapshots/
+          
+          # Security Gate: Ensure no modified files exist outside of data/daily_snapshots/
+          UNEXPECTED_DIFF=$(git diff --cached --name-only | grep -v '^data/daily_snapshots/' || true)
+          if [ -n "$UNEXPECTED_DIFF" ]; then
+            echo "SECURITY ALERT: Unexpected files staged outside data/daily_snapshots/: $UNEXPECTED_DIFF"
+            exit 1
+          fi
+          
           git diff-index --quiet HEAD || git commit -m "chore(data): daily ski conditions snapshot $(date +'%Y-%m-%d')"
           git push
 ```
@@ -1145,18 +1273,20 @@ jobs:
 - [ ] **Step 5: Run tests and verify**
 
 Run: `.venv/bin/pytest tests/test_scrapers.py -v`
-Expected: `2 passed`
+Expected: `3 passed`
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add pipeline/scrapers/ tests/test_scrapers.py .github/workflows/daily-scraper.yml
-git commit -m "feat: implement modular scraper adapters and daily github action"
+git commit -m "feat: implement modular scraper adapters and hardened daily github action"
 ```
+
+</details>
 
 ---
 
-### Task 4: Frontend Scaffolding & Mountain-Slate Design System
+### Task 4: Frontend Scaffolding, ErrorBoundary & Mountain-Slate Design System
 
 **Files:**
 - Create: `package.json`
@@ -1164,6 +1294,7 @@ git commit -m "feat: implement modular scraper adapters and daily github action"
 - Create: `index.html`
 - Create: `src/index.css`
 - Create: `src/main.jsx`
+- Create: `src/components/ErrorBoundary.jsx`
 
 **Interfaces:**
 - Consumes: Node.js & Vite
@@ -1216,7 +1347,10 @@ Expected: `added X packages` with zero audit vulnerabilities.
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vermont Ski Terrain & Glade Predictor | Pre-Season Historical Model</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'none';" />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <title>Vermont Ski Terrain & Glade Predictor | Pre-Season Calibrated Estimates</title>
     <meta name="description" content="Predict expected open terrain, woods readiness, and rare terrain unlocking across Vermont's top 10 ski resorts from October to June." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1295,6 +1429,26 @@ button {
   margin: 0 auto;
   padding: 0 24px;
 }
+
+/* Accessibility: Focus-visible ring for keyboard navigation (WCAG 2.1 AA) */
+*:focus-visible {
+  outline: 2px solid var(--cyan-bright);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Screen-reader-only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
 ```
 
 - [ ] **Step 5: Create src/main.jsx and verify initial build**
@@ -1314,11 +1468,83 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 Run: `npm run build`
 Expected: `✓ built in XXms`
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Create src/components/ErrorBoundary.jsx**
+
+> **Architecture Review (P1.4):** Without an ErrorBoundary, any JSON parse failure, missing timeline entry, or render crash will white-screen the entire app.
+
+```jsx
+import React from 'react';
+
+export default class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('ErrorBoundary caught:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          role="alert"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '60vh',
+            padding: '40px',
+            textAlign: 'center',
+            color: '#f8fafc'
+          }}
+        >
+          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.6rem', marginBottom: '12px' }}>
+            Something went wrong
+          </h2>
+          <p style={{ color: 'var(--text-muted)', maxWidth: '500px', marginBottom: '20px' }}>
+            The Vermont Ski Terrain Predictor encountered an unexpected error.
+            Try refreshing the page.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              padding: '10px 24px',
+              borderRadius: 'var(--radius-full)',
+              background: 'var(--cyan-bright)',
+              color: 'var(--bg-deep)',
+              fontWeight: 700,
+              fontSize: '0.95rem'
+            }}
+          >
+            Reload Page
+          </button>
+          <details style={{ marginTop: '20px', fontSize: '0.8rem', color: 'var(--text-dim)', maxWidth: '600px' }}>
+            <summary>Error Details</summary>
+            <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginTop: '8px' }}>
+              {this.state.error?.toString()}
+            </pre>
+          </details>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+```
+
+- [ ] **Step 7: Commit**
 
 ```bash
-git add package.json package-lock.json vite.config.js index.html src/index.css src/main.jsx
-git commit -m "chore: scaffold react app with mountain-slate design system"
+git add package.json package-lock.json vite.config.js index.html src/index.css src/main.jsx src/components/ErrorBoundary.jsx
+git commit -m "chore: scaffold react app with mountain-slate design system and error boundary"
 ```
 
 ---
@@ -1416,7 +1642,7 @@ export default function Header({ activeTab, setActiveTab }) {
               boxShadow: '0 0 8px var(--glade-green)'
             }}></span>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Pre-Season Historical Model • 15+ Years Snowpack & Terrain Calibration
+              Pre-Season Calibrated Estimates • Expert-Curated Resort Profiles & Terrain Analysis
             </span>
           </div>
         </div>
@@ -1503,6 +1729,11 @@ export default function DateScrubber({ dayIndex, setDayIndex }) {
           max={229}
           value={dayIndex}
           onChange={(e) => setDayIndex(Number(e.target.value))}
+          aria-label={`Season timeline date selector. Currently set to ${formattedDate}`}
+          aria-valuemin={0}
+          aria-valuemax={229}
+          aria-valuenow={dayIndex}
+          aria-valuetext={formattedDate}
           style={{
             width: '100%',
             height: '8px',
@@ -1638,7 +1869,11 @@ export default function ResortCard({ rank, resort, statsOnDate, onSelect }) {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={`${resort.name}: ${median_open_pct}% open, ${gladePercent}% glade readiness. Click for details.`}
       onClick={onSelect}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(); } }}
       style={{
         background: 'var(--bg-card)',
         backdropFilter: 'var(--glass-blur)',
@@ -1861,24 +2096,32 @@ export default function SeasonalProgressionChart({ timeline, currentDayIndex }) 
 - [ ] **Step 2: Create src/components/ResortDetailModal.jsx**
 
 ```jsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import SeasonalProgressionChart from './SeasonalProgressionChart';
 
 export default function ResortDetailModal({ resort, currentDayIndex, statsOnDate, onClose }) {
   if (!resort) return null;
+
+  const modalRef = useRef(null);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
+    // Focus the modal container on mount for accessibility
+    if (modalRef.current) modalRef.current.focus();
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
   const { stats, iconic_runs, timeline } = resort;
 
   return (
-    <div style={{
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${resort.name} detailed terrain and glade analysis`}
+      style={{
       position: 'fixed',
       top: 0,
       left: 0,
@@ -1892,7 +2135,10 @@ export default function ResortDetailModal({ resort, currentDayIndex, statsOnDate
       zIndex: 1000,
       padding: '20px'
     }} onClick={onClose}>
-      <div style={{
+      <div
+        ref={modalRef}
+        tabIndex={-1}
+        style={{
         background: 'var(--bg-surface)',
         border: '1px solid var(--border-active)',
         borderRadius: 'var(--radius-lg)',
@@ -2193,7 +2439,8 @@ export default function ResortComparison({ resorts, onSelectResort }) {
 - [ ] **Step 2: Implement src/App.jsx**
 
 ```jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import ErrorBoundary from './components/ErrorBoundary';
 import Header from './components/Header';
 import DateScrubber from './components/DateScrubber';
 import SkierToggle from './components/SkierToggle';
@@ -2211,7 +2458,8 @@ export default function App() {
   const [selectedResort, setSelectedResort] = useState(null);
 
   useEffect(() => {
-    fetch('/data/vermont_ski_baseline.json')
+    const dataUrl = `${import.meta.env.BASE_URL}data/vermont_ski_baseline.json`;
+    fetch(dataUrl)
       .then((res) => {
         if (!res.ok) throw new Error('Baseline data not found');
         return res.json();
@@ -2226,9 +2474,23 @@ export default function App() {
       });
   }, []);
 
+  // P2.3: Build O(1) lookup maps for timeline data instead of O(n) Array.find()
+  const timelineMaps = useMemo(() => {
+    if (!baselineData?.resorts) return {};
+    const maps = {};
+    for (const resort of baselineData.resorts) {
+      const dateMap = new Map();
+      for (const point of resort.timeline) {
+        dateMap.set(point.date, point);
+      }
+      maps[resort.id] = dateMap;
+    }
+    return maps;
+  }, [baselineData]);
+
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'var(--cyan-bright)' }}>
+      <div role="status" aria-live="polite" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'var(--cyan-bright)' }}>
         Loading Vermont Ski Terrain Baseline...
       </div>
     );
@@ -2236,7 +2498,7 @@ export default function App() {
 
   if (!baselineData || !baselineData.resorts) {
     return (
-      <div style={{ textAlign: 'center', padding: '100px 20px', color: 'var(--ruby-red)' }}>
+      <div role="alert" style={{ textAlign: 'center', padding: '100px 20px', color: 'var(--ruby-red)' }}>
         Failed to load baseline data. Please run: <code>python pipeline/generate_baseline.py</code>
       </div>
     );
@@ -2246,8 +2508,8 @@ export default function App() {
   const dateKey = formatDateKey(currentDate);
 
   const getStatsOnDate = (resort) => {
-    const point = resort.timeline.find((p) => p.date === dateKey);
-    return point || resort.timeline[0];
+    const map = timelineMaps[resort.id];
+    return map?.get(dateKey) || resort.timeline[0];
   };
 
   const rankedResorts = [...baselineData.resorts].sort((a, b) => {
@@ -2260,46 +2522,58 @@ export default function App() {
   });
 
   return (
-    <div className="container" style={{ paddingBottom: '60px' }}>
-      <Header activeTab={activeTab} setActiveTab={setActiveTab} />
+    <ErrorBoundary>
+      {/* Skip-to-content link for keyboard users (WCAG 2.1 AA) */}
+      <a href="#main-content" className="sr-only" style={{ position: 'absolute', left: '-9999px', ':focus': { left: '10px', top: '10px' } }}>
+        Skip to main content
+      </a>
+      <div className="container" style={{ paddingBottom: '60px' }}>
+        <Header activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {activeTab === 'planner' ? (
-        <>
-          <DateScrubber dayIndex={dayIndex} setDayIndex={setDayIndex} />
-          <SkierToggle gladeFocus={gladeFocus} setGladeFocus={setGladeFocus} />
+        <main id="main-content">
+          {activeTab === 'planner' ? (
+            <>
+              <DateScrubber dayIndex={dayIndex} setDayIndex={setDayIndex} />
+              <SkierToggle gladeFocus={gladeFocus} setGladeFocus={setGladeFocus} />
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
-            gap: '20px'
-          }}>
-            {rankedResorts.map((resort, idx) => (
-              <ResortCard
-                key={resort.id}
-                rank={idx + 1}
-                resort={resort}
-                statsOnDate={getStatsOnDate(resort)}
-                onSelect={() => setSelectedResort(resort)}
-              />
-            ))}
-          </div>
-        </>
-      ) : (
-        <ResortComparison
-          resorts={baselineData.resorts}
-          onSelectResort={(resort) => setSelectedResort(resort)}
-        />
-      )}
+              <div
+                role="list"
+                aria-label="Vermont ski resorts ranked by conditions"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+                  gap: '20px'
+                }}
+              >
+                {rankedResorts.map((resort, idx) => (
+                  <ResortCard
+                    key={resort.id}
+                    rank={idx + 1}
+                    resort={resort}
+                    statsOnDate={getStatsOnDate(resort)}
+                    onSelect={() => setSelectedResort(resort)}
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            <ResortComparison
+              resorts={baselineData.resorts}
+              onSelectResort={(resort) => setSelectedResort(resort)}
+            />
+          )}
+        </main>
 
-      {selectedResort && (
-        <ResortDetailModal
-          resort={selectedResort}
-          currentDayIndex={dayIndex}
-          statsOnDate={getStatsOnDate(selectedResort)}
-          onClose={() => setSelectedResort(null)}
-        />
-      )}
-    </div>
+        {selectedResort && (
+          <ResortDetailModal
+            resort={selectedResort}
+            currentDayIndex={dayIndex}
+            statsOnDate={getStatsOnDate(selectedResort)}
+            onClose={() => setSelectedResort(null)}
+          />
+        )}
+      </div>
+    </ErrorBoundary>
   );
 }
 ```
@@ -2326,32 +2600,266 @@ git commit -m "feat: integrate full comparison matrix, state wiring, and detail 
 - Preview: `npx vite preview --port 4173`
 
 **Interfaces:**
-- Consumes: Built production bundle and live Python pipeline
-- Produces: Verified working web application and automated test report
+- Consumes: Built production bundle and Python pipeline
+- Produces: Verified working web application with documented test results
 
 - [ ] **Step 1: Run complete Python test suite**
 
 Run: `.venv/bin/pytest tests/ -v`
-Expected: All tests pass (`test_generate_baseline_structure`, `test_epic_scraper_parser`, `test_snocountry_fallback_parser`).
+Expected: All tests pass (`test_generate_baseline_structure`, `test_baseline_json_payload_size`).
 
 - [ ] **Step 2: Generate fresh baseline JSON in public/data/**
 
-Run: `.venv/bin/python pipeline/generate_baseline.py`
+Run: `.venv/bin/python pipeline/generate_baseline.py --season 2026`
 Expected: `public/data/vermont_ski_baseline.json` updated with latest calculations.
 
-- [ ] **Step 3: Run production frontend build**
+- [ ] **Step 3: Verify baseline JSON payload size**
+
+Run: `gzip -c public/data/vermont_ski_baseline.json | wc -c`
+Expected: Output is under 307,200 bytes (300KB). If exceeded, reduce `json.dump` indent level from 2 to None, or reduce decimal precision.
+
+- [ ] **Step 4: Run production frontend build**
 
 Run: `npm run build`
-Expected: Build succeeds with zero errors.
+Expected: Build succeeds with zero errors. Note the output bundle size.
 
-- [ ] **Step 4: Browser interaction check**
+- [ ] **Step 5: Browser interaction validation**
 
-Run dev server in background and use `browser_subagent` or curl to verify HTML/JSON payloads render as expected.
+Start preview server in background (`npx vite preview --port 4173`) and use `browser_subagent` to verify:
+1. Page loads without errors at `http://localhost:4173`
+2. Date scrubber slider is visible and interactive — drag to multiple dates and confirm resort cards re-rank
+3. Click a holiday preset pill (e.g., "MLK Weekend") and verify cards update
+4. Toggle "🌲 Woods & Glades Priority" and verify card re-ranking
+5. Click a resort card to open the detail modal — verify SVG chart renders and Escape key closes it
+6. Switch to "Resort Comparison Matrix" tab and verify table renders with all 10 resorts
+7. Click a resort row in the matrix and verify modal opens
 
-- [ ] **Step 5: Final Git Status & Tag**
+- [ ] **Step 6: Responsive layout spot-check**
+
+Use `browser_subagent` to resize viewport to 375px wide (mobile) and verify:
+1. Cards stack to single column
+2. Date scrubber fits without horizontal overflow
+3. Comparison table scrolls horizontally
+4. Modal is usable and scrollable
+
+- [ ] **Step 7: Keyboard navigation & accessibility check**
+
+Use `browser_subagent` to verify:
+1. Tab key moves focus through: header nav → date slider → preset pills → toggle → resort cards
+2. Each resort card receives a visible focus ring (`:focus-visible` outline)
+3. Enter/Space on a focused card opens the detail modal
+4. Escape closes the modal and returns focus
+5. Modal has `role="dialog"` and `aria-modal="true"` in the DOM
+
+- [ ] **Step 8: Final Git Status & Tag**
 
 ```bash
 git status
 git add -A
 git commit -m "chore: final end-to-end verification and assets packaging"
 ```
+
+---
+
+### Task 9: CI/CD Pipeline & Automated Quality Gates
+
+> **Architecture Review (P2.1, P2.4):** The original plan had zero CI/CD automation. This task adds linting, testing, build verification, and Lighthouse scoring to every push.
+
+**Files:**
+- Create: `.github/workflows/ci.yml`
+- Create: `.eslintrc.json` *(optional — lightweight linting)*
+
+**Interfaces:**
+- Consumes: Push/PR events on GitHub
+- Produces: Automated pass/fail quality gates on every change
+
+- [ ] **Step 1: Create .github/workflows/ci.yml**
+
+```yaml
+name: CI — Build, Test & Verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: '3.13'
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Python test suite
+        run: pytest tests/ -v
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@1a4442cacd436585916779262731d5b162bc6ec7 # v4.2.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Check for security vulnerabilities in production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Verify baseline JSON exists and is under size budget
+        run: |
+          FILE=public/data/vermont_ski_baseline.json
+          if [ ! -f "$FILE" ]; then
+            echo "ERROR: Baseline JSON not found at $FILE"
+            exit 1
+          fi
+          SIZE=$(gzip -c "$FILE" | wc -c)
+          MAX=307200  # 300KB
+          echo "Baseline JSON gzipped size: $SIZE bytes (budget: $MAX)"
+          if [ "$SIZE" -gt "$MAX" ]; then
+            echo "ERROR: Exceeds 300KB gzipped budget"
+            exit 1
+          fi
+```
+
+- [ ] **Step 2: Verify workflow syntax**
+
+Run: `cat .github/workflows/ci.yml | python3 -c "import sys, yaml; yaml.safe_load(sys.stdin.read()); print('Valid YAML')"` (or use `actionlint` if available)
+Expected: Valid YAML with no syntax errors.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add .github/workflows/ci.yml
+git commit -m "ci: add automated test, build, and size budget verification pipeline"
+```
+
+---
+
+### Task 10: GitHub Pages Deployment
+
+> **Architecture Review (P1.1):** The original plan produced a `dist/` folder but had no task to deploy it anywhere. This task adds automated deployment to GitHub Pages on every push to `main`.
+
+**Files:**
+- Modify: `.github/workflows/ci.yml` (add deploy job)
+- Modify: `vite.config.js` (add `base` path for GitHub Pages)
+
+**Interfaces:**
+- Consumes: Built production bundle in `dist/`
+- Produces: Live site at `https://<username>.github.io/<repo-name>/`
+
+- [ ] **Step 1: Update vite.config.js with GitHub Pages base path**
+
+```javascript
+// vite.config.js
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  // GitHub Pages deploys to a subpath matching the repo name
+  base: '/ski-resort-conditions/',
+});
+```
+
+- [ ] **Step 2: Add deployment job to CI workflow**
+
+Append to `.github/workflows/ci.yml`:
+
+```yaml
+  deploy:
+    needs: [python-tests, frontend-build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@1a4442cacd436585916779262731d5b162bc6ec7 # v4.2.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for production
+        run: npm run build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+```
+
+- [ ] **Step 3: Enable GitHub Pages in repository settings**
+
+Navigate to the GitHub repository → Settings → Pages → Source: **GitHub Actions**.
+
+- [ ] **Step 4: Verify deployment**
+
+Push to `main` and verify:
+1. CI workflow runs and passes all jobs (python-tests, frontend-build, deploy)
+2. Site is accessible at `https://<username>.github.io/ski-resort-conditions/`
+3. Date scrubber, resort cards, and modal all function correctly on the live URL
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add vite.config.js .github/workflows/ci.yml
+git commit -m "ci: add github pages deployment pipeline"
+```
+
+---
+
+### Phase 2 Backlog (Post-Launch)
+
+> The following items are tracked for future iterations but are explicitly out of scope for v1:
+
+| # | Item | Priority | Estimated Effort |
+|:--|:---|:---|:---|
+| P2-1 | Ingest real historical data (Mount Mansfield Snow Stake, NOAA GHCN-Daily) to replace calibrated estimates | High | 2-3 days |
+| P2-2 | Implement all 5 scraper adapters and merge/overlay pipeline (Task 3) | High | 3-4 days |
+| P2-3 | Add SVG chart tooltips with exact values on hover/touch | Medium | 2-3 hours |
+| P2-4 | Add print/share view for trip planning summaries | Medium | 4-6 hours |
+| P2-5 | Move daily snapshots to external storage (S3, git-lfs, or GitHub Releases) | Medium | 2-3 hours |
+| P2-6 | Legal review for web scraping of resort APIs (Epic/Vail ToS) | High | External |
+| P2-7 | Add Sentry or similar error tracking for frontend | Low | 1-2 hours |
+| P2-8 | Add page view analytics (privacy-respecting, e.g., Plausible) | Low | 1 hour |
+| P2-9 | Service Worker for offline caching (as promised in design spec §6) | Medium | 3-4 hours |
+| P2-10 | Lighthouse CI integration with score thresholds in CI pipeline | Medium | 1-2 hours |
+| P2-11 | Lock Python requirements with cryptographic hashes (`pip-compile --generate-hashes`) and configure Dependabot | Medium | 1-2 hours |
+
