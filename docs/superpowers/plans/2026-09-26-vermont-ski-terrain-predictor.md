@@ -1985,7 +1985,7 @@ git commit -m "feat: implement trip planner scrubber, header, and resort card co
 - Consumes: Selected resort object and current day index
 - Produces: Interactive SVG seasonal progression chart (10th/50th/90th percentile envelope, glowing glade curve, date cursor) and rare terrain unlock list
 
-- [ ] **Step 1: Create src/components/SeasonalProgressionChart.jsx**
+- [x] **Step 1: Create src/components/SeasonalProgressionChart.jsx**
 
 ```jsx
 import React, { useMemo } from 'react';
@@ -2093,7 +2093,7 @@ export default function SeasonalProgressionChart({ timeline, currentDayIndex }) 
 }
 ```
 
-- [ ] **Step 2: Create src/components/ResortDetailModal.jsx**
+- [x] **Step 2: Create src/components/ResortDetailModal.jsx**
 
 ```jsx
 import React, { useEffect, useRef } from 'react';
@@ -2253,7 +2253,7 @@ export default function ResortDetailModal({ resort, currentDayIndex, statsOnDate
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/components/SeasonalProgressionChart.jsx src/components/ResortDetailModal.jsx
