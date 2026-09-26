@@ -40,7 +40,7 @@
 - Consumes: System Python 3.13
 - Produces: Isolated `.venv` with `pytest`, `requests`, `beautifulsoup4`, `pydantic`, `defusedxml` installed
 
-- [ ] **Step 1: Create .gitignore for Python and Node environments**
+- [x] **Step 1: Create .gitignore for Python and Node environments**
 
 ```gitignore
 # Virtual environments
@@ -57,7 +57,7 @@ dist/
 *.swp
 ```
 
-- [ ] **Step 2: Create virtual environment and install core test dependencies**
+- [x] **Step 2: Create virtual environment and install core test dependencies**
 
 Run:
 ```bash
@@ -67,7 +67,7 @@ python3 -m venv .venv
 .venv/bin/pip freeze > requirements.txt
 ```
 
-- [ ] **Step 3: Create tests/conftest.py test harness**
+- [x] **Step 3: Create tests/conftest.py test harness**
 
 ```python
 import sys
@@ -79,12 +79,12 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 ```
 
-- [ ] **Step 4: Verify test runner executes cleanly**
+- [x] **Step 4: Verify test runner executes cleanly**
 
 Run: `.venv/bin/pytest tests/ -v`
 Expected: `no tests ran in 0.0X seconds` (clean exit code 5 or 0)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add .gitignore requirements.txt tests/conftest.py
