@@ -14,7 +14,7 @@ Skiers planning trips to Vermont face a persistent information gap:
 3. **Trip Planning Window**: Skier booking decisions (flights, lodging, passes) happen weeks or months in advance, during the pre-season, when current conditions cannot tell them what will be open.
 
 ### Primary Goals
-- Provide an interactive, date-based trip planning tool that calculates the historical average open terrain percentage and glade opening probability for any target date between November 15 and April 15.
+- Provide an interactive, date-based trip planning tool that calculates the historical average open terrain percentage and glade opening probability for any target date between October 15 and June 1 (capturing early season snowmaking debuts like Killington in October through late spring mogul skiing in May/June).
 - Specifically track and predict the opening dates and holiday odds for iconic "rare" terrain and glades across Vermont's major mountains.
 - Deliver a fast, responsive, modern web application prioritizing pre-season planning capabilities first, paired with a daily automated scraping architecture for live season tracking.
 
@@ -214,7 +214,7 @@ A decoupled design separating the data engine from the frontend web application:
 ## 7. Verification & Testing Strategy
 
 1. **Baseline Generator Unit Tests**:
-   - Validate that all 10 resorts have 150 daily data points (Nov 15 to Apr 15).
+   - Validate that all 10 resorts have daily data points spanning October 15 to June 1 (~230 days per resort).
    - Ensure probability values stay bounded in $[0.0, 1.0]$.
    - Verify that 10th percentile $\le$ 50th percentile $\le$ 90th percentile for all dates.
 2. **Frontend UI Verification**:
