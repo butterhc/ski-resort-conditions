@@ -1562,7 +1562,7 @@ git commit -m "chore: scaffold react app with mountain-slate design system and e
 - Consumes: `vermont_ski_baseline.json`
 - Produces: Interactive date scrubbing across October 15 – June 1, holiday presets, skier preference toggling, and ranked resort cards with confidence intervals and glade readiness gauges
 
-- [ ] **Step 1: Write src/utils/timelineUtils.js with date math**
+- [x] **Step 1: Write src/utils/timelineUtils.js with date math**
 
 ```javascript
 export const SEASON_START = new Date(2026, 9, 15); // Oct 15
@@ -1594,7 +1594,7 @@ export function formatDateKey(d) {
 }
 ```
 
-- [ ] **Step 2: Create src/components/Header.jsx**
+- [x] **Step 2: Create src/components/Header.jsx**
 
 ```jsx
 import React from 'react';
@@ -1683,7 +1683,7 @@ export default function Header({ activeTab, setActiveTab }) {
 }
 ```
 
-- [ ] **Step 3: Create src/components/DateScrubber.jsx**
+- [x] **Step 3: Create src/components/DateScrubber.jsx**
 
 ```jsx
 import React from 'react';
@@ -1795,7 +1795,7 @@ export default function DateScrubber({ dayIndex, setDayIndex }) {
 }
 ```
 
-- [ ] **Step 4: Create src/components/SkierToggle.jsx**
+- [x] **Step 4: Create src/components/SkierToggle.jsx**
 
 ```jsx
 import React from 'react';
@@ -1855,7 +1855,7 @@ export default function SkierToggle({ gladeFocus, setGladeFocus }) {
 }
 ```
 
-- [ ] **Step 5: Create src/components/ResortCard.jsx**
+- [x] **Step 5: Create src/components/ResortCard.jsx**
 
 ```jsx
 import React from 'react';
@@ -1966,7 +1966,7 @@ export default function ResortCard({ rank, resort, statsOnDate, onSelect }) {
 }
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/utils/timelineUtils.js src/components/Header.jsx src/components/DateScrubber.jsx src/components/SkierToggle.jsx src/components/ResortCard.jsx
