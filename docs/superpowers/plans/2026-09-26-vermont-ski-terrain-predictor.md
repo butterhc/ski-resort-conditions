@@ -104,7 +104,7 @@ git commit -m "chore: scaffold python virtual environment and pytest harness"
 - Consumes: None (standalone calibrated estimation engine)
 - Produces: `public/data/vermont_ski_baseline.json` conforming to the spec schema (10 resorts, Oct 15 – Jun 1 timeline, p10/p50/p90 percentiles, glade probabilities, iconic runs)
 
-- [ ] **Step 1: Write failing test in tests/test_baseline.py**
+- [x] **Step 1: Write failing test in tests/test_baseline.py**
 
 ```python
 import gzip
@@ -165,12 +165,12 @@ def test_baseline_json_payload_size(tmp_path):
     )
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_baseline.py -v`
 Expected: `ModuleNotFoundError: No module named 'pipeline.generate_baseline'`
 
-- [ ] **Step 3: Implement pipeline/generate_baseline.py**
+- [x] **Step 3: Implement pipeline/generate_baseline.py**
 
 ```python
 """
@@ -953,17 +953,17 @@ if __name__ == "__main__":
     print("Baseline generation complete.")
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `.venv/bin/pytest tests/test_baseline.py -v`
 Expected: `test_generate_baseline_structure PASSED`
 
-- [ ] **Step 5: Generate public/data/vermont_ski_baseline.json**
+- [x] **Step 5: Generate public/data/vermont_ski_baseline.json**
 
 Run: `.venv/bin/python pipeline/generate_baseline.py`
 Expected: Output `public/data/vermont_ski_baseline.json` generated.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add pipeline/generate_baseline.py tests/test_baseline.py public/data/vermont_ski_baseline.json
