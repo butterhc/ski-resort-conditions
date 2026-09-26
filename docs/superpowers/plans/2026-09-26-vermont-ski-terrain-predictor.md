@@ -2673,7 +2673,7 @@ git commit -m "chore: final end-to-end verification and assets packaging"
 - Consumes: Push/PR events on GitHub
 - Produces: Automated pass/fail quality gates on every change
 
-- [ ] **Step 1: Create .github/workflows/ci.yml**
+- [x] **Step 1: Create .github/workflows/ci.yml**
 
 ```yaml
 name: CI — Build, Test & Verify
@@ -2744,12 +2744,12 @@ jobs:
           fi
 ```
 
-- [ ] **Step 2: Verify workflow syntax**
+- [x] **Step 2: Verify workflow syntax**
 
 Run: `cat .github/workflows/ci.yml | python3 -c "import sys, yaml; yaml.safe_load(sys.stdin.read()); print('Valid YAML')"` (or use `actionlint` if available)
 Expected: Valid YAML with no syntax errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add .github/workflows/ci.yml
@@ -2770,7 +2770,7 @@ git commit -m "ci: add automated test, build, and size budget verification pipel
 - Consumes: Built production bundle in `dist/`
 - Produces: Live site at `https://<username>.github.io/<repo-name>/`
 
-- [ ] **Step 1: Update vite.config.js with GitHub Pages base path**
+- [x] **Step 1: Update vite.config.js with GitHub Pages base path**
 
 ```javascript
 // vite.config.js
@@ -2784,7 +2784,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 2: Add deployment job to CI workflow**
+- [x] **Step 2: Add deployment job to CI workflow**
 
 Append to `.github/workflows/ci.yml`:
 
@@ -2836,7 +2836,7 @@ Push to `main` and verify:
 2. Site is accessible at `https://<username>.github.io/ski-resort-conditions/`
 3. Date scrubber, resort cards, and modal all function correctly on the live URL
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add vite.config.js .github/workflows/ci.yml
