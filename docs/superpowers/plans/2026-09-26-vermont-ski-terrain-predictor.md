@@ -2603,27 +2603,27 @@ git commit -m "feat: integrate full comparison matrix, state wiring, and detail 
 - Consumes: Built production bundle and Python pipeline
 - Produces: Verified working web application with documented test results
 
-- [ ] **Step 1: Run complete Python test suite**
+- [x] **Step 1: Run complete Python test suite**
 
 Run: `.venv/bin/pytest tests/ -v`
 Expected: All tests pass (`test_generate_baseline_structure`, `test_baseline_json_payload_size`).
 
-- [ ] **Step 2: Generate fresh baseline JSON in public/data/**
+- [x] **Step 2: Generate fresh baseline JSON in public/data/**
 
 Run: `.venv/bin/python pipeline/generate_baseline.py --season 2026`
 Expected: `public/data/vermont_ski_baseline.json` updated with latest calculations.
 
-- [ ] **Step 3: Verify baseline JSON payload size**
+- [x] **Step 3: Verify baseline JSON payload size**
 
 Run: `gzip -c public/data/vermont_ski_baseline.json | wc -c`
 Expected: Output is under 307,200 bytes (300KB). If exceeded, reduce `json.dump` indent level from 2 to None, or reduce decimal precision.
 
-- [ ] **Step 4: Run production frontend build**
+- [x] **Step 4: Run production frontend build**
 
 Run: `npm run build`
 Expected: Build succeeds with zero errors. Note the output bundle size.
 
-- [ ] **Step 5: Browser interaction validation**
+- [x] **Step 5: Browser interaction validation**
 
 Start preview server in background (`npx vite preview --port 4173`) and use `browser_subagent` to verify:
 1. Page loads without errors at `http://localhost:4173`
@@ -2634,7 +2634,7 @@ Start preview server in background (`npx vite preview --port 4173`) and use `bro
 6. Switch to "Resort Comparison Matrix" tab and verify table renders with all 10 resorts
 7. Click a resort row in the matrix and verify modal opens
 
-- [ ] **Step 6: Responsive layout spot-check**
+- [x] **Step 6: Responsive layout spot-check**
 
 Use `browser_subagent` to resize viewport to 375px wide (mobile) and verify:
 1. Cards stack to single column
@@ -2642,7 +2642,7 @@ Use `browser_subagent` to resize viewport to 375px wide (mobile) and verify:
 3. Comparison table scrolls horizontally
 4. Modal is usable and scrollable
 
-- [ ] **Step 7: Keyboard navigation & accessibility check**
+- [x] **Step 7: Keyboard navigation & accessibility check**
 
 Use `browser_subagent` to verify:
 1. Tab key moves focus through: header nav → date slider → preset pills → toggle → resort cards
@@ -2651,7 +2651,7 @@ Use `browser_subagent` to verify:
 4. Escape closes the modal and returns focus
 5. Modal has `role="dialog"` and `aria-modal="true"` in the DOM
 
-- [ ] **Step 8: Final Git Status & Tag**
+- [x] **Step 8: Final Git Status & Tag**
 
 ```bash
 git status
