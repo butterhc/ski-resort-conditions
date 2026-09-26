@@ -2272,7 +2272,7 @@ git commit -m "feat: implement SVG progression curve and resort deep dive modal"
 - Consumes: `vermont_ski_baseline.json` dataset
 - Produces: Complete, interactive multi-tab application with sorting, matrix views, and detail inspection
 
-- [ ] **Step 1: Create src/components/ResortComparison.jsx**
+- [x] **Step 1: Create src/components/ResortComparison.jsx**
 
 ```jsx
 import React, { useState } from 'react';
@@ -2436,7 +2436,7 @@ export default function ResortComparison({ resorts, onSelectResort }) {
 }
 ```
 
-- [ ] **Step 2: Implement src/App.jsx**
+- [x] **Step 2: Implement src/App.jsx**
 
 ```jsx
 import React, { useState, useEffect, useMemo } from 'react';
@@ -2578,12 +2578,12 @@ export default function App() {
 }
 ```
 
-- [ ] **Step 3: Build the application to verify compilation**
+- [x] **Step 3: Build the application to verify compilation**
 
 Run: `npm run build`
 Expected: `✓ built in XXms` without errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/components/ResortComparison.jsx src/App.jsx
