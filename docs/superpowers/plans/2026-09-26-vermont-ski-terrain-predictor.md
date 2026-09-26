@@ -1127,7 +1127,7 @@ class EpicScraper(BaseResortScraper):
     def fetch_live_status(self) -> Dict[str, Any]:
         try:
             headers = {
-                "User-Agent": "VermontSkiTerrainPredictor/1.0 (+https://github.com/buttercm/ski-resort-conditions)",
+                "User-Agent": "VermontSkiTerrainPredictor/1.0 (+https://github.com/butterhc/ski-resort-conditions)",
                 "Accept": "application/json"
             }
             resp = requests.get(self.endpoint, headers=headers, timeout=10, stream=True)
