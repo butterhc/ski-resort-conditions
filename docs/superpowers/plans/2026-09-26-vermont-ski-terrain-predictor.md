@@ -2825,11 +2825,11 @@ Append to `.github/workflows/ci.yml`:
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
 ```
 
-- [ ] **Step 3: Enable GitHub Pages in repository settings**
+- [x] **Step 3: Enable GitHub Pages in repository settings**
 
 Navigate to the GitHub repository → Settings → Pages → Source: **GitHub Actions**.
 
-- [ ] **Step 4: Verify deployment**
+- [x] **Step 4: Verify deployment**
 
 Push to `main` and verify:
 1. CI workflow runs and passes all jobs (python-tests, frontend-build, deploy)
