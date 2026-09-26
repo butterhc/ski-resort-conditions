@@ -1300,7 +1300,7 @@ git commit -m "feat: implement modular scraper adapters and hardened daily githu
 - Consumes: Node.js & Vite
 - Produces: Running Vite dev server and production CSS tokens matching the UI mockups
 
-- [ ] **Step 1: Create package.json and vite.config.js**
+- [x] **Step 1: Create package.json and vite.config.js**
 
 ```json
 {
@@ -1334,12 +1334,12 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 2: Install dependencies**
+- [x] **Step 2: Install dependencies**
 
 Run: `npm install`
 Expected: `added X packages` with zero audit vulnerabilities.
 
-- [ ] **Step 3: Create index.html**
+- [x] **Step 3: Create index.html**
 
 ```html
 <!DOCTYPE html>
@@ -1363,7 +1363,7 @@ Expected: `added X packages` with zero audit vulnerabilities.
 </html>
 ```
 
-- [ ] **Step 4: Create src/index.css with complete Design System**
+- [x] **Step 4: Create src/index.css with complete Design System**
 
 ```css
 :root {
@@ -1451,7 +1451,7 @@ button {
 }
 ```
 
-- [ ] **Step 5: Create src/main.jsx and verify initial build**
+- [x] **Step 5: Create src/main.jsx and verify initial build**
 
 ```javascript
 import React from 'react';
@@ -1468,7 +1468,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 Run: `npm run build`
 Expected: `✓ built in XXms`
 
-- [ ] **Step 6: Create src/components/ErrorBoundary.jsx**
+- [x] **Step 6: Create src/components/ErrorBoundary.jsx**
 
 > **Architecture Review (P1.4):** Without an ErrorBoundary, any JSON parse failure, missing timeline entry, or render crash will white-screen the entire app.
 
@@ -1540,7 +1540,7 @@ export default class ErrorBoundary extends React.Component {
 }
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add package.json package-lock.json vite.config.js index.html src/index.css src/main.jsx src/components/ErrorBoundary.jsx
